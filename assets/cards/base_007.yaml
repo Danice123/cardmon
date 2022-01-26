@@ -1,0 +1,21 @@
+card: Monster
+series: Base
+number: 7
+
+name: Hitmonchan
+level: 33
+stage: 1
+hp: 70
+type: Fighting
+weakness: Psychic
+retreat: 2
+attacks:
+  - name: Jab
+    cost:
+      Fighting: 1
+    damage: 20
+  - name: Special Punch
+    cost:
+      Fighting: 2
+      Colorless: 1
+    damage: 40
