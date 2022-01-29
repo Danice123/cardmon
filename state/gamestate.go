@@ -160,6 +160,8 @@ func (ths Gamestate) SwitchTo(p Player, benchIndex int) Gamestate {
 func (ths Gamestate) SwitchDead(p Player, benchIndex int) Gamestate {
 	state := ths.Players[p]
 	state.Active = state.Bench[benchIndex]
+	state.Bench[benchIndex] = state.Bench[len(state.Bench)-1]
+	state.Bench = state.Bench[:len(state.Bench)-1]
 	ths.Players[p] = state
 
 	ostate := ths.Players[OtherPlayer(p)]
