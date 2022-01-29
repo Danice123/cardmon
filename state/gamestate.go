@@ -11,7 +11,7 @@ type Player string
 const Player1 = Player("one")
 const Player2 = Player("two")
 
-func otherPlayer(p Player) Player {
+func OtherPlayer(p Player) Player {
 	if p == Player1 {
 		return Player2
 	} else {
@@ -22,6 +22,7 @@ func otherPlayer(p Player) Player {
 type Gamestate struct {
 	Players           map[Player]Playerstate
 	Turn              Player
+	Winner            *Player
 	HasAttachedEnergy bool
 }
 
@@ -29,7 +30,7 @@ type Playerstate struct {
 	Deck    card.CardStack
 	Hand    card.CardGroup
 	Discard card.CardStack
-	Prizes  card.CardGroup
+	Prizes  card.CardStack
 
 	Active    Cardstate
 	HasActive bool
@@ -141,9 +142,9 @@ func (ths Gamestate) AddEnergyToBench(p Player, handIndex int, benchIndex int) G
 }
 
 func (ths Gamestate) Attack(p Player, attackIndex int) Gamestate {
-	state := ths.Players[otherPlayer(p)]
+	state := ths.Players[OtherPlayer(p)]
 	state.Active.Damage += ths.Players[p].Active.Card.(card.MonsterCard).Attacks[attackIndex].Damage
-	ths.Players[otherPlayer(p)] = state
+	ths.Players[OtherPlayer(p)] = state
 	return ths.TurnTransition(p)
 }
 
@@ -156,8 +157,19 @@ func (ths Gamestate) SwitchTo(p Player, benchIndex int) Gamestate {
 	return ths
 }
 
+func (ths Gamestate) SwitchDead(p Player, benchIndex int) Gamestate {
+	state := ths.Players[p]
+	state.Active = state.Bench[benchIndex]
+	ths.Players[p] = state
+
+	ostate := ths.Players[OtherPlayer(p)]
+	ostate.Hand = append(ostate.Hand, ostate.Prizes.PopX(1)...)
+	ths.Players[OtherPlayer(p)] = ostate
+	return ths
+}
+
 func (ths Gamestate) TurnTransition(p Player) Gamestate {
-	ths.Turn = otherPlayer(p)
+	ths.Turn = OtherPlayer(p)
 	ths.HasAttachedEnergy = false
 	return ths
 }

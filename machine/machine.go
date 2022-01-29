@@ -20,6 +20,7 @@ type Handler interface {
 	Alert(string)
 	AskCardFromHand(string, bool) (int, bool)
 	AskTargetMonster(string, bool) (int, bool)
+	AskTargetBenchMonster(string, bool) (int, bool)
 	AskForAction() (string, int)
 }
 
@@ -67,9 +68,19 @@ func (ths *GameMachine) Start(game state.Gamestate) {
 	}
 
 	for {
-		// Check for game end by draw exhaust
-		ths.turn(ths.Current.Turn)
-		// Check for game end by prize or lack of active
+		if len(ths.Current.Players[ths.Current.Turn].Deck) == 0 {
+			ths.handlers[ths.Current.Turn].Alert("You have run out of cards to draw!")
+			opp := state.OtherPlayer(ths.Current.Turn)
+			ths.Current.Winner = &opp
+		} else {
+			ths.turn(ths.Current.Turn)
+		}
+
+		if ths.Current.Winner != nil {
+			ths.handlers[*ths.Current.Winner].Alert("You win")
+			ths.handlers[state.OtherPlayer(*ths.Current.Winner)].Alert("You lose")
+			break
+		}
 	}
 }
 
@@ -119,6 +130,9 @@ func (ths *GameMachine) playInitialCards(player state.Player) {
 }
 
 func (ths *GameMachine) turn(p state.Player) {
+	ths.Current = ths.Current.Draw(p, 1)
+
+turnLoop:
 	for ths.Current.Turn == p {
 		ths.Current.Display()
 		action, choice := ths.handlers[p].AskForAction()
@@ -151,6 +165,22 @@ func (ths *GameMachine) turn(p state.Player) {
 			a := ths.Current.Players[p].Active.Card.(card.MonsterCard).Attacks[choice]
 			if a.CheckCost(ths.Current.Players[p].Active.Energy) {
 				ths.Current = ths.Current.Attack(p, choice)
+
+				opp := state.OtherPlayer(p)
+				if ths.Current.Players[opp].Active.Damage >= ths.Current.Players[opp].Active.Card.(card.MonsterCard).HP {
+					if len(ths.Current.Players[opp].Bench) == 0 {
+						ths.handlers[opp].Alert("You have run out of monsters on the field!")
+						ths.Current.Winner = &p
+						break turnLoop
+					}
+					c, _ := ths.handlers[opp].AskTargetBenchMonster("Choose monster to replace dead one.", false)
+					ths.Current = ths.Current.SwitchDead(opp, c)
+					if len(ths.Current.Players[p].Prizes) == 0 {
+						ths.handlers[p].Alert("You have drawn all your prizes!")
+						ths.Current.Winner = &p
+						break turnLoop
+					}
+				}
 			} else {
 				ths.handlers[p].Alert("Insufficient energy")
 			}
