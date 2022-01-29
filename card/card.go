@@ -1,6 +1,7 @@
 package card
 
 type Card interface {
-	Text()
-	ShortText() string
+	CardType() CardType
+	String() string
+	Text() string
 }

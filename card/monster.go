@@ -17,16 +17,25 @@ type MonsterCard struct {
 	Attacks    []MonsterAttack
 }
 
-func (ths MonsterCard) ShortText() string {
+func (ths MonsterCard) CardType() CardType {
+	return Monster
+}
+
+func (ths MonsterCard) String() string {
 	return fmt.Sprintf("%s  LV. %d", ths.Name, ths.Level)
 }
 
-func (ths MonsterCard) Text() {
-	fmt.Printf("%s  %s\tLV. %d\tHP: %d\tTYPE: %s\n", StageToString(ths.Stage), ths.Name, ths.Level, ths.HP, ths.Type)
+func (ths MonsterCard) Text() string {
+	sb := strings.Builder{}
+
+	sb.WriteString(fmt.Sprintf("%s  %s\tLV. %d\tHP: %d\tTYPE: %s\n", StageToString(ths.Stage), ths.Name, ths.Level, ths.HP, ths.Type))
+
 	for _, attack := range ths.Attacks {
-		fmt.Printf("%s\t%d\tCost: %s\n", attack.Name, attack.Damage, CostToString(attack.Cost))
+		sb.WriteString(attack.String())
 	}
-	fmt.Printf("Weakness: %s\tResistance: %s\tRetreat Cost: %d\n", ths.Weakness, ths.Resistance, ths.Retreat)
+	sb.WriteString(fmt.Sprintf("Weakness: %s\tResistance: %s\tRetreat Cost: %d\n", ths.Weakness, ths.Resistance, ths.Retreat))
+
+	return sb.String()
 }
 
 func StageToString(stage int) string {
@@ -37,16 +46,48 @@ func StageToString(stage int) string {
 	}
 }
 
+type MonsterAttack struct {
+	Name   string
+	Cost   map[Type]int
+	Damage int
+}
+
+func (ths MonsterAttack) CheckCost(energyCards CardGroup) bool {
+	emap := map[Type]int{}
+	for _, c := range energyCards {
+		emap[c.(EnergyCard).Type]++
+	}
+
+	total := 0
+	for _, c := range ths.Cost {
+		total += c
+	}
+
+	if len(energyCards) < total {
+		return false
+	}
+
+	ok := true
+	for t, c := range ths.Cost {
+		if t == COLORLESS {
+			continue
+		}
+		if emap[t] < c {
+			ok = false
+			break
+		}
+	}
+	return ok
+}
+
+func (ths MonsterAttack) String() string {
+	return fmt.Sprintf("%s\t%d\tCost: %s\n", ths.Name, ths.Damage, CostToString(ths.Cost))
+}
+
 func CostToString(cost map[Type]int) string {
 	var sb strings.Builder
 	for t, c := range cost {
 		sb.WriteString(fmt.Sprintf("%s:%d ", t, c))
 	}
 	return sb.String()
-}
-
-type MonsterAttack struct {
-	Name   string
-	Cost   map[Type]int
-	Damage int
 }

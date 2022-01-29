@@ -1,13 +1,14 @@
 package card
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type CardGroup []Card
 
-func (ths CardGroup) Show() {
-	for _, c := range ths {
-		fmt.Println(c.ShortText())
-	}
+func (ths *CardGroup) Add(c Card) {
+	(*ths) = append((*ths), c)
 }
 
 func (ths *CardGroup) Remove(index int) Card {
@@ -17,8 +18,22 @@ func (ths *CardGroup) Remove(index int) Card {
 	return element
 }
 
+func (ths CardGroup) String() string {
+	sb := strings.Builder{}
+	for _, c := range ths {
+		sb.WriteString(c.String())
+	}
+	return sb.String()
+}
+
+func (ths CardGroup) Show() {
+	for _, c := range ths {
+		fmt.Println(c.String())
+	}
+}
+
 func (ths CardGroup) ShowIndexed() {
 	for i, c := range ths {
-		fmt.Printf("%d: %s\n", i, c.ShortText())
+		fmt.Printf("%d: %s\n", i+1, c.String())
 	}
 }
