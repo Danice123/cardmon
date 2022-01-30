@@ -50,6 +50,19 @@ type MonsterAttack struct {
 	Name   string
 	Cost   map[Type]int
 	Damage int
+	Effect *Effect
+}
+
+func CostToString(cost map[Type]int) string {
+	var sb strings.Builder
+	for t, c := range cost {
+		sb.WriteString(fmt.Sprintf("%s:%d ", t, c))
+	}
+	return sb.String()
+}
+
+func (ths MonsterAttack) String() string {
+	return fmt.Sprintf("%s\t%d\tCost: %s\n", ths.Name, ths.Damage, CostToString(ths.Cost))
 }
 
 func (ths MonsterAttack) CheckCost(energyCards CardGroup) bool {
@@ -80,14 +93,7 @@ func (ths MonsterAttack) CheckCost(energyCards CardGroup) bool {
 	return ok
 }
 
-func (ths MonsterAttack) String() string {
-	return fmt.Sprintf("%s\t%d\tCost: %s\n", ths.Name, ths.Damage, CostToString(ths.Cost))
-}
-
-func CostToString(cost map[Type]int) string {
-	var sb strings.Builder
-	for t, c := range cost {
-		sb.WriteString(fmt.Sprintf("%s:%d ", t, c))
-	}
-	return sb.String()
+type Effect struct {
+	Id         string
+	Parameters map[string]interface{}
 }

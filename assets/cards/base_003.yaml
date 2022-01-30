@@ -1,0 +1,27 @@
+card: Monster
+series: Base
+number: 3
+
+name: Chansey
+level: 55
+stage: 1
+hp: 120
+type: Colorless
+weakness: Fighting
+resistance: Psychic
+retreat: 1
+attacks:
+
+  - name: Scrunch
+    cost:
+      Colorless: 2
+    effect:
+      id: coinflip
+      parameters:
+        heads:
+          id: protect
+
+  - name: Double-edge
+    cost:
+      Colorless: 4
+    damage: 80

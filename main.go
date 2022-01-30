@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Danice123/cardmon/card"
+	"github.com/Danice123/cardmon/constant"
 	"github.com/Danice123/cardmon/deck"
 	"github.com/Danice123/cardmon/machine"
 	"github.com/Danice123/cardmon/state"
@@ -28,7 +29,7 @@ func consoleReadInt(bound int) int {
 }
 
 type HumanConsole struct {
-	player  state.Player
+	player  constant.Player
 	color   string
 	machine *machine.GameMachine
 }
@@ -138,18 +139,18 @@ func (ths *HumanConsole) AskForAction() (string, int) {
 func main() {
 	rand.Seed(time.Now().Unix())
 	lib := card.LoadLibrary()
-	gs := state.NewGame(deck.BuildDeck("assets/decks/test.yaml", lib), deck.BuildDeck("assets/decks/test.yaml", lib))
+	gs := state.NewGame(deck.BuildDeck("assets/decks/test.yaml", lib), deck.BuildDeck("assets/decks/test2.yaml", lib))
 
 	g := &machine.GameMachine{
 		Current: gs,
 	}
-	g.RegisterHandler(state.Player1, &HumanConsole{
-		player:  state.Player1,
+	g.RegisterHandler(constant.Player1, &HumanConsole{
+		player:  constant.Player1,
 		color:   "\033[31m",
 		machine: g,
 	})
-	g.RegisterHandler(state.Player2, &HumanConsole{
-		player:  state.Player2,
+	g.RegisterHandler(constant.Player2, &HumanConsole{
+		player:  constant.Player2,
 		color:   "\033[34m",
 		machine: g,
 	})

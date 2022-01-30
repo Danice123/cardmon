@@ -1,20 +1,11 @@
 package machine
 
 import (
-	"fmt"
-	"math/rand"
-
 	"github.com/Danice123/cardmon/card"
+	"github.com/Danice123/cardmon/constant"
 	"github.com/Danice123/cardmon/state"
+	"github.com/Danice123/cardmon/utils"
 )
-
-func coinflip() bool {
-	if rand.Intn(100) > 50 {
-		return true
-	} else {
-		return false
-	}
-}
 
 type Handler interface {
 	Alert(string)
@@ -25,52 +16,40 @@ type Handler interface {
 }
 
 type GameMachine struct {
-	handlers map[state.Player]Handler
+	handlers map[constant.Player]Handler
 
 	Current state.Gamestate
 }
 
-func (ths *GameMachine) RegisterHandler(player state.Player, handler Handler) {
+func (ths *GameMachine) RegisterHandler(player constant.Player, handler Handler) {
 	if ths.handlers == nil {
-		ths.handlers = map[state.Player]Handler{}
+		ths.handlers = map[constant.Player]Handler{}
 	}
 	ths.handlers[player] = handler
 }
 
 func (ths *GameMachine) AlertBoth(message string) {
-	ths.handlers[state.Player1].Alert(message)
-	ths.handlers[state.Player2].Alert(message)
+	ths.handlers[constant.Player1].Alert(message)
+	ths.handlers[constant.Player2].Alert(message)
 }
 
 func (ths *GameMachine) Start(game state.Gamestate) {
 	ths.Current = game
-	ths.AlertBoth("Shuffling your deck")
-	ths.Current = ths.Current.Shuffle(state.Player1)
-	ths.Current = ths.Current.Shuffle(state.Player2)
-
-	ths.AlertBoth("Each player will draw 7 cards")
-	ths.Current = ths.Current.Draw(state.Player1, 7)
-	ths.Current = ths.Current.Draw(state.Player2, 7)
-	ths.checkForBasics(state.Player1)
-	ths.checkForBasics(state.Player2)
-	ths.playInitialCards(state.Player1)
-	ths.playInitialCards(state.Player2)
-
-	ths.AlertBoth("Placing six prizes")
-	ths.Current = ths.Current.PlacePrizes(state.Player1)
-	ths.Current = ths.Current.PlacePrizes(state.Player2)
+	ths.Current = ths.Current.DealNewGame()
+	ths.playInitialCards(constant.Player1)
+	ths.playInitialCards(constant.Player2)
 
 	ths.AlertBoth("Coin flip to see who goes first")
-	if coinflip() {
-		ths.Current.Turn = state.Player2
+	if utils.Coinflip() {
+		ths.Current.Turn = constant.Player2
 	} else {
-		ths.Current.Turn = state.Player1
+		ths.Current.Turn = constant.Player1
 	}
 
 	for {
 		if len(ths.Current.Players[ths.Current.Turn].Deck) == 0 {
 			ths.handlers[ths.Current.Turn].Alert("You have run out of cards to draw!")
-			opp := state.OtherPlayer(ths.Current.Turn)
+			opp := constant.OtherPlayer(ths.Current.Turn)
 			ths.Current.Winner = &opp
 		} else {
 			ths.turn(ths.Current.Turn)
@@ -78,33 +57,13 @@ func (ths *GameMachine) Start(game state.Gamestate) {
 
 		if ths.Current.Winner != nil {
 			ths.handlers[*ths.Current.Winner].Alert("You win")
-			ths.handlers[state.OtherPlayer(*ths.Current.Winner)].Alert("You lose")
+			ths.handlers[constant.OtherPlayer(*ths.Current.Winner)].Alert("You lose")
 			break
 		}
 	}
 }
 
-func (ths *GameMachine) checkForBasics(player state.Player) {
-	for {
-		var hasBasic bool
-		for _, c := range ths.Current.Players[player].Hand {
-			if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
-				hasBasic = true
-				break
-			}
-		}
-		if !hasBasic {
-			ths.AlertBoth(fmt.Sprintf("Player %s has no basic cards, reshuffling deck and drawing again", player))
-			ths.Current = ths.Current.PlaceHandOnDeck(player)
-			ths.Current = ths.Current.Shuffle(player)
-			ths.Current = ths.Current.Draw(player, 7)
-			continue
-		}
-		break
-	}
-}
-
-func (ths *GameMachine) playInitialCards(player state.Player) {
+func (ths *GameMachine) playInitialCards(player constant.Player) {
 	for {
 		choice, _ := ths.handlers[player].AskCardFromHand("Choose a Basic monster to be your active.", false)
 		c := ths.Current.Players[player].Hand[choice]
@@ -129,7 +88,7 @@ func (ths *GameMachine) playInitialCards(player state.Player) {
 	}
 }
 
-func (ths *GameMachine) turn(p state.Player) {
+func (ths *GameMachine) turn(p constant.Player) {
 	ths.Current = ths.Current.Draw(p, 1)
 
 turnLoop:
@@ -166,7 +125,7 @@ turnLoop:
 			if a.CheckCost(ths.Current.Players[p].Active.Energy) {
 				ths.Current = ths.Current.Attack(p, choice)
 
-				opp := state.OtherPlayer(p)
+				opp := constant.OtherPlayer(p)
 				if ths.Current.Players[opp].Active.Damage >= ths.Current.Players[opp].Active.Card.(card.MonsterCard).HP {
 					if len(ths.Current.Players[opp].Bench) == 0 {
 						ths.handlers[opp].Alert("You have run out of monsters on the field!")
