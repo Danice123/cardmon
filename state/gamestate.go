@@ -49,12 +49,31 @@ func (ths Gamestate) Attack(p constant.Player, attackIndex int) Gamestate {
 		state.Active.Damage += attack.Damage
 	}
 	ths.Players[t] = state
+	ths = ths.checkStateOfActive(t)
 
 	if attack.Effect != nil {
 		ths = LoadEffect(attack.Effect.Id, attack.Effect.Parameters).Apply(t, ths)
 	}
 
-	return ths.TurnTransition(p)
+	return ths
+}
+
+func (ths Gamestate) checkStateOfActive(p constant.Player) Gamestate {
+	state := ths.Players[p]
+	if state.Active.Damage >= state.Active.Card.(card.MonsterCard).HP {
+		state.HasActive = false
+		ths.Players[p] = state
+
+		ostate := ths.Players[constant.OtherPlayer(p)]
+		ostate.Hand = append(ostate.Hand, ostate.Prizes.PopX(1)...)
+		ths.Players[constant.OtherPlayer(p)] = ostate
+
+		if len(state.Bench) == 0 || len(ostate.Prizes) == 0 {
+			win := constant.OtherPlayer(p)
+			ths.Winner = &win
+		}
+	}
+	return ths
 }
 
 func (ths Gamestate) TurnTransition(p constant.Player) Gamestate {
@@ -82,11 +101,8 @@ func (ths Gamestate) SwitchDead(p constant.Player, benchIndex int) Gamestate {
 	state.Active = state.Bench[benchIndex]
 	state.Bench[benchIndex] = state.Bench[len(state.Bench)-1]
 	state.Bench = state.Bench[:len(state.Bench)-1]
+	state.HasActive = true
 	ths.Players[p] = state
-
-	ostate := ths.Players[constant.OtherPlayer(p)]
-	ostate.Hand = append(ostate.Hand, ostate.Prizes.PopX(1)...)
-	ths.Players[constant.OtherPlayer(p)] = ostate
 	return ths
 }
 

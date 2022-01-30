@@ -40,3 +40,15 @@ func (ths Protect) Apply(t constant.Player, gs Gamestate) Gamestate {
 	gs.Players[constant.OtherPlayer(t)] = state
 	return gs
 }
+
+type Selfdamage struct {
+	Damage int
+}
+
+func (ths Selfdamage) Apply(t constant.Player, gs Gamestate) Gamestate {
+	state := gs.Players[constant.OtherPlayer(t)]
+	state.Active.Damage += ths.Damage
+	gs.Players[constant.OtherPlayer(t)] = state
+	gs = gs.checkStateOfActive(constant.OtherPlayer(t))
+	return gs
+}

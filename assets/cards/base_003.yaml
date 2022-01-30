@@ -25,3 +25,7 @@ attacks:
     cost:
       Colorless: 4
     damage: 80
+    effect:
+      id: selfdamage
+      parameters:
+        damage: 80

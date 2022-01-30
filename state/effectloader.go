@@ -23,6 +23,10 @@ func LoadEffect(id string, param map[string]interface{}) Effect {
 		var protect Protect
 		err = yaml.Unmarshal(b, &protect)
 		e = protect
+	case "selfdamage":
+		var selfdamage Selfdamage
+		err = yaml.Unmarshal(b, &selfdamage)
+		e = selfdamage
 	default:
 		panic("No effect by that id")
 	}

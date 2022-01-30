@@ -124,22 +124,17 @@ turnLoop:
 			a := ths.Current.Players[p].Active.Card.(card.MonsterCard).Attacks[choice]
 			if a.CheckCost(ths.Current.Players[p].Active.Energy) {
 				ths.Current = ths.Current.Attack(p, choice)
+				if ths.Current.Winner != nil {
+					break turnLoop
+				}
 
 				opp := constant.OtherPlayer(p)
-				if ths.Current.Players[opp].Active.Damage >= ths.Current.Players[opp].Active.Card.(card.MonsterCard).HP {
-					if len(ths.Current.Players[opp].Bench) == 0 {
-						ths.handlers[opp].Alert("You have run out of monsters on the field!")
-						ths.Current.Winner = &p
-						break turnLoop
-					}
+				if !ths.Current.Players[opp].HasActive {
 					c, _ := ths.handlers[opp].AskTargetBenchMonster("Choose monster to replace dead one.", false)
 					ths.Current = ths.Current.SwitchDead(opp, c)
-					if len(ths.Current.Players[p].Prizes) == 0 {
-						ths.handlers[p].Alert("You have drawn all your prizes!")
-						ths.Current.Winner = &p
-						break turnLoop
-					}
 				}
+
+				ths.Current = ths.Current.TurnTransition(p)
 			} else {
 				ths.handlers[p].Alert("Insufficient energy")
 			}

@@ -19,7 +19,7 @@ func NewGame(deck1 card.CardStack, deck2 card.CardStack) Gamestate {
 }
 
 func (ths Gamestate) DealNewGame() Gamestate {
-	if !ths.IsDealt {
+	if ths.IsDealt {
 		panic("Game is already running")
 	}
 	ths = ths.Shuffle(constant.Player1)
@@ -30,7 +30,7 @@ func (ths Gamestate) DealNewGame() Gamestate {
 	ths = ths.checkForBasic(constant.Player2)
 	ths = ths.placePrizes(constant.Player1)
 	ths = ths.placePrizes(constant.Player2)
-	ths.IsDealt = false
+	ths.IsDealt = true
 	return ths
 }
 
