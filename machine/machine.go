@@ -9,9 +9,8 @@ import (
 
 type Handler interface {
 	Alert(string)
-	AskCardFromHand(string, bool) (int, bool)
-	AskTargetMonster(string, bool) (int, bool)
-	AskTargetBenchMonster(string, bool) (int, bool)
+	AskCardFromHand(message string, cancelable bool) (int, bool)
+	AskTargetMonster(message string, showActive bool, cancelable bool) (int, bool)
 	AskForAction() (string, int)
 }
 
@@ -105,7 +104,7 @@ turnLoop:
 					ths.handlers[p].Alert("Already attached energy this turn")
 					break
 				}
-				if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true); ok {
+				if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true, true); ok {
 					if target == 0 {
 						ths.Current = ths.Current.AddEnergyToActive(p, choice)
 					} else {
@@ -130,7 +129,7 @@ turnLoop:
 
 				opp := constant.OtherPlayer(p)
 				if !ths.Current.Players[opp].HasActive {
-					c, _ := ths.handlers[opp].AskTargetBenchMonster("Choose monster to replace dead one.", false)
+					c, _ := ths.handlers[opp].AskTargetMonster("Choose monster to replace dead one.", false, false)
 					ths.Current = ths.Current.SwitchDead(opp, c)
 				}
 

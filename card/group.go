@@ -1,7 +1,6 @@
 package card
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -26,14 +25,10 @@ func (ths CardGroup) String() string {
 	return sb.String()
 }
 
-func (ths CardGroup) Show() {
+func (ths CardGroup) Slice() []string {
+	s := []string{}
 	for _, c := range ths {
-		fmt.Println(c.String())
+		s = append(s, c.String())
 	}
-}
-
-func (ths CardGroup) ShowIndexed() {
-	for i, c := range ths {
-		fmt.Printf("%d: %s\n", i+1, c.String())
-	}
+	return s
 }

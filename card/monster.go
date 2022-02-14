@@ -25,19 +25,6 @@ func (ths MonsterCard) String() string {
 	return fmt.Sprintf("%s  LV. %d", ths.Name, ths.Level)
 }
 
-func (ths MonsterCard) Text() string {
-	sb := strings.Builder{}
-
-	sb.WriteString(fmt.Sprintf("%s  %s\tLV. %d\tHP: %d\tTYPE: %s\n", StageToString(ths.Stage), ths.Name, ths.Level, ths.HP, ths.Type))
-
-	for _, attack := range ths.Attacks {
-		sb.WriteString(attack.String())
-	}
-	sb.WriteString(fmt.Sprintf("Weakness: %s\tResistance: %s\tRetreat Cost: %d\n", ths.Weakness, ths.Resistance, ths.Retreat))
-
-	return sb.String()
-}
-
 func StageToString(stage int) string {
 	if stage == 1 {
 		return "Basic"
@@ -62,7 +49,7 @@ func CostToString(cost map[Type]int) string {
 }
 
 func (ths MonsterAttack) String() string {
-	return fmt.Sprintf("%s\t%d\tCost: %s\n", ths.Name, ths.Damage, CostToString(ths.Cost))
+	return fmt.Sprintf("%s\t%d\tCost: %s", ths.Name, ths.Damage, CostToString(ths.Cost))
 }
 
 func (ths MonsterAttack) CheckCost(energyCards CardGroup) bool {
