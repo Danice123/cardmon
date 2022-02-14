@@ -6,7 +6,6 @@ import (
 
 	"github.com/Danice123/cardmon/card"
 	"github.com/Danice123/cardmon/constant"
-	"github.com/Danice123/cardmon/deck"
 	"github.com/Danice123/cardmon/machine"
 	"github.com/Danice123/cardmon/state"
 )
@@ -27,7 +26,7 @@ import (
 func main() {
 	rand.Seed(time.Now().Unix())
 	lib := card.LoadLibrary()
-	gs := state.NewGame(deck.BuildDeck("assets/decks/test.yaml", lib), deck.BuildDeck("assets/decks/test2.yaml", lib))
+	gs := state.NewGame(card.BuildDeck("player1", "assets/decks/test.yaml", lib), card.BuildDeck("player2", "assets/decks/test2.yaml", lib))
 
 	g := &machine.GameMachine{
 		Current: gs,

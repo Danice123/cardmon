@@ -6,6 +6,7 @@ import (
 )
 
 type MonsterCard struct {
+	id         string
 	Name       string
 	Level      int
 	Stage      int
@@ -17,6 +18,18 @@ type MonsterCard struct {
 	Attacks    []MonsterAttack
 }
 
+func (ths MonsterCard) instanceWithId(did string) Card {
+	ths.id = fmt.Sprintf("%s_%s", ths.Name, did)
+	return ths
+}
+
+func (ths MonsterCard) Id() string {
+	if ths.id == "" {
+		panic("Uninitialized card!")
+	}
+	return ths.id
+}
+
 func (ths MonsterCard) CardType() CardType {
 	return Monster
 }
@@ -25,12 +38,19 @@ func (ths MonsterCard) String() string {
 	return fmt.Sprintf("%s  LV. %d", ths.Name, ths.Level)
 }
 
-func StageToString(stage int) string {
-	if stage == 1 {
-		return "Basic"
-	} else {
-		return fmt.Sprintf("Stage %d", stage-1)
+func (ths MonsterCard) GetAttack(aid string) (MonsterAttack, bool) {
+	index := -1
+	for i, attack := range ths.Attacks {
+		if attack.Name == aid {
+			index = i
+			break
+		}
 	}
+	if index == -1 {
+		return MonsterAttack{}, false
+	}
+	return ths.Attacks[index], true
+
 }
 
 type MonsterAttack struct {

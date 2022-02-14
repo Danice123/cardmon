@@ -24,8 +24,8 @@ func (ths Gamestate) DealNewGame() Gamestate {
 	}
 	ths = ths.Shuffle(constant.Player1)
 	ths = ths.Shuffle(constant.Player2)
-	ths = ths.Draw(constant.Player1, 7)
-	ths = ths.Draw(constant.Player2, 7)
+	ths, _ = ths.Draw(constant.Player1, 7)
+	ths, _ = ths.Draw(constant.Player2, 7)
 	ths = ths.checkForBasic(constant.Player1)
 	ths = ths.checkForBasic(constant.Player2)
 	ths = ths.placePrizes(constant.Player1)
@@ -46,7 +46,7 @@ func (ths Gamestate) checkForBasic(p constant.Player) Gamestate {
 		if !hasBasic {
 			ths = ths.PlaceHandOnDeck(p)
 			ths = ths.Shuffle(p)
-			ths = ths.Draw(p, 7)
+			ths, _ = ths.Draw(p, 7)
 			continue
 		}
 		break
@@ -61,26 +61,30 @@ func (ths Gamestate) placePrizes(p constant.Player) Gamestate {
 	return ths
 }
 
-func (ths Gamestate) PlayBasicFromHand(p constant.Player, handIndex int) Gamestate {
+func (ths Gamestate) PlayBasicFromHand(p constant.Player, cid string) Gamestate {
 	state := ths.Players[p]
-	c := state.Hand.Remove(handIndex)
-	if c.CardType() != card.Monster {
-		panic("Attempted to play non-monster card to field")
-	}
-	if c.(card.MonsterCard).Stage != 1 {
-		panic("Attempted to play non-basic monster card to field")
-	}
-	if !state.HasActive && !state.HasInitialized {
-		state.Active = Cardstate{
-			Card: c,
+	if c, ok := state.Hand.Remove(cid); ok {
+		if c.CardType() != card.Monster {
+			panic("Attempted to play non-monster card to field")
 		}
-		state.HasActive = true
-		state.HasInitialized = true
+		if c.(card.MonsterCard).Stage != 1 {
+			panic("Attempted to play non-basic monster card to field")
+		}
+		if !state.HasActive && !state.HasInitialized {
+			state.Active = Cardstate{
+				Card: c,
+			}
+			state.HasActive = true
+			state.HasInitialized = true
+		} else {
+			state.Bench = append(state.Bench, Cardstate{
+				Card: c,
+			})
+		}
+		ths.Players[p] = state
+		return ths
 	} else {
-		state.Bench = append(state.Bench, Cardstate{
-			Card: c,
-		})
+		panic("Attempted to play card not in hand")
 	}
-	ths.Players[p] = state
-	return ths
+
 }

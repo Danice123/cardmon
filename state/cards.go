@@ -5,11 +5,12 @@ import (
 	"github.com/Danice123/cardmon/constant"
 )
 
-func (ths Gamestate) Draw(p constant.Player, n int) Gamestate {
+func (ths Gamestate) Draw(p constant.Player, n int) (Gamestate, []card.Card) {
 	state := ths.Players[p]
-	state.Hand = append(state.Hand, state.Deck.PopX(n)...)
+	cards := state.Deck.PopX(n)
+	state.Hand = append(state.Hand, cards...)
 	ths.Players[p] = state
-	return ths
+	return ths, cards
 }
 
 func (ths Gamestate) Shuffle(p constant.Player) Gamestate {
@@ -25,31 +26,28 @@ func (ths Gamestate) PlaceHandOnDeck(p constant.Player) Gamestate {
 	return ths
 }
 
-func (ths Gamestate) AddEnergyToActive(p constant.Player, handIndex int) Gamestate {
+func (ths Gamestate) AddEnergy(p constant.Player, mid string, eid string) Gamestate {
 	if ths.HasAttachedEnergy {
 		panic("Already attached energy this turn")
 	}
 	state := ths.Players[p]
-	c := state.Hand.Remove(handIndex)
-	if c.CardType() != card.Energy {
-		panic("Not energy card!")
-	}
-	state.Active.Energy.Add(c)
-	ths.Players[p] = state
-	ths.HasAttachedEnergy = true
-	return ths
-}
 
-func (ths Gamestate) AddEnergyToBench(p constant.Player, handIndex int, benchIndex int) Gamestate {
-	if ths.HasAttachedEnergy {
-		panic("Already attached energy this turn")
+	var energy card.Card
+	if c, ok := state.Hand.Remove(eid); ok {
+		if c.CardType() != card.Energy {
+			panic("Not energy card!")
+		}
+		energy = c
+	} else {
+		panic("Attempted to play card not in hand")
 	}
-	state := ths.Players[p]
-	c := state.Hand.Remove(handIndex)
-	if c.CardType() != card.Energy {
-		panic("Not energy card!")
+
+	monster := state.getMonsterPointer(mid)
+	if monster == nil {
+		panic("Attempted to play card on nonexistant monster")
 	}
-	state.Bench[benchIndex].Energy.Add(c)
+	monster.Energy.Add(energy)
+
 	ths.Players[p] = state
 	ths.HasAttachedEnergy = true
 	return ths

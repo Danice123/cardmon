@@ -8,10 +8,11 @@ import (
 )
 
 type Handler interface {
+	Handle(Event)
 	Alert(string)
-	AskCardFromHand(message string, cancelable bool) (int, bool)
-	AskTargetMonster(message string, showActive bool, cancelable bool) (int, bool)
-	AskForAction() (string, int)
+	AskCardFromHand(message string, cancelable bool) (string, bool)
+	AskTargetMonster(message string, showActive bool, cancelable bool) (string, bool)
+	AskForAction() (string, string)
 }
 
 type GameMachine struct {
@@ -32,18 +33,26 @@ func (ths *GameMachine) AlertBoth(message string) {
 	ths.handlers[constant.Player2].Alert(message)
 }
 
+func (ths *GameMachine) Event(event Event) {
+	ths.handlers[constant.Player1].Handle(event)
+	ths.handlers[constant.Player2].Handle(event)
+}
+
 func (ths *GameMachine) Start(game state.Gamestate) {
 	ths.Current = game
 	ths.Current = ths.Current.DealNewGame()
 	ths.playInitialCards(constant.Player1)
 	ths.playInitialCards(constant.Player2)
 
-	ths.AlertBoth("Coin flip to see who goes first")
+	e := Coinflip{Message: "if heads player 1 goes first"}
 	if utils.Coinflip() {
-		ths.Current.Turn = constant.Player2
-	} else {
+		e.Outcome = "heads"
 		ths.Current.Turn = constant.Player1
+	} else {
+		e.Outcome = "tails"
+		ths.Current.Turn = constant.Player2
 	}
+	ths.Event(e)
 
 	for {
 		if len(ths.Current.Players[ths.Current.Turn].Deck) == 0 {
@@ -65,12 +74,15 @@ func (ths *GameMachine) Start(game state.Gamestate) {
 func (ths *GameMachine) playInitialCards(player constant.Player) {
 	for {
 		choice, _ := ths.handlers[player].AskCardFromHand("Choose a Basic monster to be your active.", false)
-		c := ths.Current.Players[player].Hand[choice]
-		if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
-			ths.Current = ths.Current.PlayBasicFromHand(player, choice)
-			break
+		if c, ok := ths.Current.Players[player].Hand.Get(choice); ok {
+			if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
+				ths.Current = ths.Current.PlayBasicFromHand(player, choice)
+				break
+			}
+			ths.handlers[player].Alert("Card chosen was not a basic monster card")
+		} else {
+			ths.handlers[player].Alert("Card chosen was not in hand")
 		}
-		ths.handlers[player].Alert("Card chosen was not a basic monster card")
 	}
 
 	for {
@@ -78,64 +90,53 @@ func (ths *GameMachine) playInitialCards(player constant.Player) {
 		if !ok {
 			break
 		}
-		c := ths.Current.Players[player].Hand[choice]
-		if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
-			ths.Current = ths.Current.PlayBasicFromHand(player, choice)
+		if c, ok := ths.Current.Players[player].Hand.Get(choice); ok {
+			if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
+				ths.Current = ths.Current.PlayBasicFromHand(player, choice)
+			} else {
+				ths.handlers[player].Alert("Card chosen was not a basic monster card")
+			}
 		} else {
-			ths.handlers[player].Alert("Card chosen was not a basic monster card")
+			ths.handlers[player].Alert("Card chosen was not in hand")
 		}
 	}
 }
 
 func (ths *GameMachine) turn(p constant.Player) {
-	ths.Current = ths.Current.Draw(p, 1)
+	var drawn []card.Card
+	ths.Current, drawn = ths.Current.Draw(p, 1)
+	for _, card := range drawn {
+		ths.handlers[p].Handle(CardDraw{card})
+	}
 
 turnLoop:
 	for ths.Current.Turn == p {
-		ths.Current.Display()
 		action, choice := ths.handlers[p].AskForAction()
-
 		switch action {
 		case "Hand":
-			c := ths.Current.Players[p].Hand[choice]
-			switch c.CardType() {
-			case card.Energy:
-				if ths.Current.HasAttachedEnergy {
-					ths.handlers[p].Alert("Already attached energy this turn")
-					break
-				}
-				if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true, true); ok {
-					if target == 0 {
-						ths.Current = ths.Current.AddEnergyToActive(p, choice)
-					} else {
-						ths.Current = ths.Current.AddEnergyToBench(p, choice, target-1)
-					}
-				}
-			case card.Monster:
-				if c.(card.MonsterCard).Stage == 1 {
-					ths.Current = ths.Current.PlayBasicFromHand(p, choice)
-				} // else {
-				// handle evolutions
-				//}
-			case card.Trainer:
+			if c, ok := ths.Current.Players[p].Hand.Get(choice); ok {
+				ths.playCardFromHand(p, c)
+			} else {
+				ths.handlers[p].Alert("Card chosen was not in hand")
 			}
 		case "Attack":
-			a := ths.Current.Players[p].Active.Card.(card.MonsterCard).Attacks[choice]
-			if a.CheckCost(ths.Current.Players[p].Active.Energy) {
-				ths.Current = ths.Current.Attack(p, choice)
-				if ths.Current.Winner != nil {
-					break turnLoop
-				}
+			if attack, ok := ths.Current.Players[p].Active.Card.(card.MonsterCard).GetAttack(choice); ok {
+				if attack.CheckCost(ths.Current.Players[p].Active.Energy) {
+					ths.Current = ths.Current.Attack(p, choice)
+					if ths.Current.Winner != nil {
+						break turnLoop
+					}
 
-				opp := constant.OtherPlayer(p)
-				if !ths.Current.Players[opp].HasActive {
-					c, _ := ths.handlers[opp].AskTargetMonster("Choose monster to replace dead one.", false, false)
-					ths.Current = ths.Current.SwitchDead(opp, c)
-				}
+					opp := constant.OtherPlayer(p)
+					if !ths.Current.Players[opp].HasActive {
+						c, _ := ths.handlers[opp].AskTargetMonster("Choose monster to replace dead one.", false, false)
+						ths.Current = ths.Current.SwitchDead(opp, c)
+					}
 
-				ths.Current = ths.Current.TurnTransition(p)
-			} else {
-				ths.handlers[p].Alert("Insufficient energy")
+					ths.Current = ths.Current.TurnTransition(p)
+				} else {
+					ths.handlers[p].Alert("Insufficient energy")
+				}
 			}
 		case "Retreat":
 			if ths.Current.Players[p].Active.Card.(card.MonsterCard).Retreat <= len(ths.Current.Players[p].Active.Energy) {
@@ -146,5 +147,29 @@ turnLoop:
 		case "Pass":
 			ths.Current = ths.Current.TurnTransition(p)
 		}
+	}
+}
+
+func (ths *GameMachine) playCardFromHand(p constant.Player, c card.Card) {
+	switch c.CardType() {
+	case card.Energy:
+		if ths.Current.HasAttachedEnergy {
+			ths.handlers[p].Alert("Already attached energy this turn")
+			break
+		}
+		if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true, true); ok {
+			ths.handlers[p].Handle(AttachEnergy{})
+			ths.Current = ths.Current.AddEnergy(p, target, c.Id())
+		} else {
+			ths.handlers[p].Alert("Target monster doesn't exist")
+		}
+	case card.Monster:
+		if c.(card.MonsterCard).Stage == 1 {
+			ths.Current = ths.Current.PlayBasicFromHand(p, c.Id())
+		}
+		// else {
+		// handle evolutions
+		//}
+	case card.Trainer:
 	}
 }

@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Danice123/cardmon/card"
 	"github.com/Danice123/cardmon/constant"
@@ -28,6 +29,32 @@ type Playerstate struct {
 	Bench          []Cardstate
 }
 
+func (ths *Playerstate) getMonsterPointer(mid string) *Cardstate {
+	var monster *Cardstate
+	if ths.Active.Card.Id() == mid {
+		monster = &ths.Active
+	} else {
+		for i, m := range ths.Bench {
+			if m.Card.Id() == mid {
+				monster = &ths.Bench[i]
+				break
+			}
+		}
+	}
+	return monster
+}
+
+func (ths Playerstate) getBenchIndex(mid string) (int, bool) {
+	index := -1
+	for i, m := range ths.Bench {
+		if m.Card.Id() == mid {
+			index = i
+			break
+		}
+	}
+	return index, index != -1
+}
+
 type Cardstate struct {
 	Card    card.Card
 	Energy  card.CardGroup
@@ -37,25 +64,32 @@ type Cardstate struct {
 
 func (ths Cardstate) String() string {
 	hp := ths.Card.(card.MonsterCard).HP
-	return fmt.Sprintf("%s HP %d/%d %s", ths.Card.String(), hp-ths.Damage, hp, ths.Energy.String())
+	sb := strings.Builder{}
+	for _, e := range ths.Energy {
+		sb.WriteString(e.(card.EnergyCard).Pprint())
+		sb.WriteString(" ")
+	}
+	return fmt.Sprintf("%s HP %d/%d %s", ths.Card.String(), hp-ths.Damage, hp, sb.String())
 }
 
-func (ths Gamestate) Attack(p constant.Player, attackIndex int) Gamestate {
+func (ths Gamestate) Attack(p constant.Player, aid string) Gamestate {
 	t := constant.OtherPlayer(p)
-	attack := ths.Players[p].Active.Card.(card.MonsterCard).Attacks[attackIndex]
+	if attack, ok := ths.Players[p].Active.Card.(card.MonsterCard).GetAttack(aid); ok {
+		state := ths.Players[t]
+		if !state.Active.Protect {
+			state.Active.Damage += attack.Damage
+		}
+		ths.Players[t] = state
+		ths = ths.checkStateOfActive(t)
 
-	state := ths.Players[t]
-	if !state.Active.Protect {
-		state.Active.Damage += attack.Damage
+		if attack.Effect != nil {
+			ths = LoadEffect(attack.Effect.Id, attack.Effect.Parameters).Apply(t, ths)
+		}
+
+		return ths
+	} else {
+		panic("Bad attack id")
 	}
-	ths.Players[t] = state
-	ths = ths.checkStateOfActive(t)
-
-	if attack.Effect != nil {
-		ths = LoadEffect(attack.Effect.Id, attack.Effect.Parameters).Apply(t, ths)
-	}
-
-	return ths
 }
 
 func (ths Gamestate) checkStateOfActive(p constant.Player) Gamestate {
@@ -87,38 +121,29 @@ func (ths Gamestate) TurnTransition(p constant.Player) Gamestate {
 	return ths
 }
 
-func (ths Gamestate) SwitchTo(p constant.Player, benchIndex int) Gamestate {
+func (ths Gamestate) SwitchTo(p constant.Player, mid string) Gamestate {
 	state := ths.Players[p]
-	old := state.Active
-	state.Active = state.Bench[benchIndex]
-	state.Bench[benchIndex] = old
-	ths.Players[p] = state
-	return ths
+	if benchIndex, ok := state.getBenchIndex(mid); ok {
+		old := state.Active
+		state.Active = state.Bench[benchIndex]
+		state.Bench[benchIndex] = old
+		ths.Players[p] = state
+		return ths
+	} else {
+		panic("Attempted to bring out nonexistant monster")
+	}
 }
 
-func (ths Gamestate) SwitchDead(p constant.Player, benchIndex int) Gamestate {
+func (ths Gamestate) SwitchDead(p constant.Player, mid string) Gamestate {
 	state := ths.Players[p]
-	state.Active = state.Bench[benchIndex]
-	state.Bench[benchIndex] = state.Bench[len(state.Bench)-1]
-	state.Bench = state.Bench[:len(state.Bench)-1]
-	state.HasActive = true
-	ths.Players[p] = state
-	return ths
-}
-
-// PLACEHOLDER
-func (ths Gamestate) Display() {
-	fmt.Printf("#\t")
-	for _, c := range ths.Players[constant.Player2].Bench {
-		fmt.Printf("%s\t", c.Card.String())
+	if benchIndex, ok := state.getBenchIndex(mid); ok {
+		state.Active = state.Bench[benchIndex]
+		state.Bench[benchIndex] = state.Bench[len(state.Bench)-1]
+		state.Bench = state.Bench[:len(state.Bench)-1]
+		state.HasActive = true
+		ths.Players[p] = state
+		return ths
+	} else {
+		panic("Attempted to bring out nonexistant monster")
 	}
-	fmt.Print("\n")
-	fmt.Printf("#\n#\t%s\n#\n", ths.Players[constant.Player2].Active.String())
-	fmt.Println("######################################################")
-	fmt.Printf("#\n#\t%s\n#\n", ths.Players[constant.Player1].Active.String())
-	fmt.Printf("#\t")
-	for _, c := range ths.Players[constant.Player1].Bench {
-		fmt.Printf("%s\t", c.Card.String())
-	}
-	fmt.Print("\n")
 }
