@@ -22,6 +22,18 @@ func (ths *HumanConsole) Handle(event machine.Event) {
 		fmt.Printf("%s%s\nThe result was %s\033[0m\n", ths.color, event.(machine.Coinflip).Message, event.(machine.Coinflip).Outcome)
 	case machine.CARDDRAW:
 		fmt.Printf("%sYou drew the card: %s\033[0m\n", ths.color, event.(machine.CardDraw).Card.String())
+	case machine.ATTACHENERGY:
+		if event.(machine.AttachEnergy).Player == ths.player {
+			fmt.Printf("%sYou attached the %s to %s\033[0m\n",
+				ths.color,
+				event.(machine.AttachEnergy).Energy.String(),
+				event.(machine.AttachEnergy).Target.String())
+		} else {
+			fmt.Printf("%sOpponent attached the %s to %s\033[0m\n",
+				ths.color,
+				event.(machine.AttachEnergy).Energy.String(),
+				event.(machine.AttachEnergy).Target.String())
+		}
 	}
 }
 

@@ -1,6 +1,9 @@
 package machine
 
-import "github.com/Danice123/cardmon/card"
+import (
+	"github.com/Danice123/cardmon/card"
+	"github.com/Danice123/cardmon/constant"
+)
 
 type Event interface {
 	Type() EventType
@@ -16,6 +19,7 @@ type CardDraw struct {
 }
 
 type AttachEnergy struct {
-	Energy card.EnergyCard
-	Target int
+	Energy card.Card
+	Target card.Card
+	Player constant.Player
 }

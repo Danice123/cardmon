@@ -158,10 +158,18 @@ func (ths *GameMachine) playCardFromHand(p constant.Player, c card.Card) {
 			break
 		}
 		if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true, true); ok {
-			ths.handlers[p].Handle(AttachEnergy{})
-			ths.Current = ths.Current.AddEnergy(p, target, c.Id())
-		} else {
-			ths.handlers[p].Alert("Target monster doesn't exist")
+			benchIndex, benched := ths.Current.Players[p].GetBenchIndex(target)
+			if ths.Current.Players[p].Active.Card.Id() == target || benched {
+				ths.Current = ths.Current.AddEnergy(p, target, c.Id())
+
+				if benched {
+					ths.Event(AttachEnergy{Player: p, Energy: c, Target: ths.Current.Players[p].Bench[benchIndex].Card})
+				} else {
+					ths.Event(AttachEnergy{Player: p, Energy: c, Target: ths.Current.Players[p].Active.Card})
+				}
+			} else {
+				ths.handlers[p].Alert("Target monster doesn't exist")
+			}
 		}
 	case card.Monster:
 		if c.(card.MonsterCard).Stage == 1 {

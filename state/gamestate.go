@@ -44,7 +44,7 @@ func (ths *Playerstate) getMonsterPointer(mid string) *Cardstate {
 	return monster
 }
 
-func (ths Playerstate) getBenchIndex(mid string) (int, bool) {
+func (ths Playerstate) GetBenchIndex(mid string) (int, bool) {
 	index := -1
 	for i, m := range ths.Bench {
 		if m.Card.Id() == mid {
@@ -123,7 +123,7 @@ func (ths Gamestate) TurnTransition(p constant.Player) Gamestate {
 
 func (ths Gamestate) SwitchTo(p constant.Player, mid string) Gamestate {
 	state := ths.Players[p]
-	if benchIndex, ok := state.getBenchIndex(mid); ok {
+	if benchIndex, ok := state.GetBenchIndex(mid); ok {
 		old := state.Active
 		state.Active = state.Bench[benchIndex]
 		state.Bench[benchIndex] = old
@@ -136,7 +136,7 @@ func (ths Gamestate) SwitchTo(p constant.Player, mid string) Gamestate {
 
 func (ths Gamestate) SwitchDead(p constant.Player, mid string) Gamestate {
 	state := ths.Players[p]
-	if benchIndex, ok := state.getBenchIndex(mid); ok {
+	if benchIndex, ok := state.GetBenchIndex(mid); ok {
 		state.Active = state.Bench[benchIndex]
 		state.Bench[benchIndex] = state.Bench[len(state.Bench)-1]
 		state.Bench = state.Bench[:len(state.Bench)-1]
