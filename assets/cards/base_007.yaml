@@ -13,9 +13,17 @@ attacks:
   - name: Jab
     cost:
       Fighting: 1
-    damage: 20
+    damageDescription: 20
+    effects:
+      - id: damage
+        parameters:
+          amount: 20
   - name: Special Punch
     cost:
       Fighting: 2
       Colorless: 1
-    damage: 40
+    damageDescription: 40
+    effects:
+      - id: damage
+        parameters:
+          amount: 40

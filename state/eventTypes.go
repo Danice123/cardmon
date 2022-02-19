@@ -31,3 +31,9 @@ var DAMAGE = EventType("DAMAGE")
 func (ths EDamage) Type() EventType {
 	return DAMAGE
 }
+
+var SLEEP = EventType("SLEEP")
+
+func (ths ESleep) Type() EventType {
+	return SLEEP
+}

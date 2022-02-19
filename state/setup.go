@@ -64,34 +64,6 @@ func (ths Gamestate) placePrizes(p constant.Player) Gamestate {
 	return ths
 }
 
-func (ths Gamestate) PlayBasicFromHand(p constant.Player, cid string) (Gamestate, []Event, error) {
-	events := []Event{}
-	state := ths.Players[p]
-	if c, ok := state.Hand.Remove(cid); ok {
-		if c.CardType() != card.Monster {
-			return ths, events, errors.New("attempted to play non-monster card to field")
-		}
-		if c.(card.MonsterCard).Stage != 1 {
-			return ths, events, errors.New("attempted to play non-basic monster card to field")
-		}
-		if !state.HasActive && !state.HasInitialized {
-			state.Active = Cardstate{
-				Card: c,
-			}
-			state.HasActive = true
-		} else {
-			state.Bench = append(state.Bench, Cardstate{
-				Card: c,
-			})
-			events = append(events, EAddToBench{Player: p, Monster: c})
-		}
-		ths.Players[p] = state
-		return ths, events, nil
-	} else {
-		return ths, events, errors.New("attempted to play card not in hand")
-	}
-}
-
 func (ths Gamestate) StartGame() (Gamestate, []Event, error) {
 	for p, state := range ths.Players {
 		if state.HasInitialized {
@@ -105,12 +77,10 @@ func (ths Gamestate) StartGame() (Gamestate, []Event, error) {
 		ths.Players[p] = state
 	}
 
-	e := ECoinflip{Message: "if heads player 1 goes first"}
-	if utils.Coinflip() {
-		e.Outcome = "heads"
+	e := ECoinflip{Message: "if heads player 1 goes first", Outcome: utils.Coinflip()}
+	if e.Outcome {
 		ths.Turn = constant.Player1
 	} else {
-		e.Outcome = "tails"
 		ths.Turn = constant.Player2
 	}
 

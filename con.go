@@ -19,7 +19,7 @@ type HumanConsole struct {
 func (ths *HumanConsole) Handle(event state.Event) {
 	switch event.Type() {
 	case state.COINFLIP:
-		fmt.Printf("%s%s\nThe result was %s\033[0m\n", ths.color, event.(state.ECoinflip).Message, event.(state.ECoinflip).Outcome)
+		fmt.Printf("%s%s\nThe result was %v\033[0m\n", ths.color, event.(state.ECoinflip).Message, event.(state.ECoinflip).Outcome)
 	case state.CARDDRAW:
 		fmt.Printf("%sYou drew the card: %s\033[0m\n", ths.color, event.(state.ECardDraw).Card.String())
 	case state.ATTACHENERGY:
@@ -49,6 +49,10 @@ func (ths *HumanConsole) Handle(event state.Event) {
 			ths.color,
 			event.(state.EDamage).Monster.String(),
 			event.(state.EDamage).Amount)
+	case state.SLEEP:
+		fmt.Printf("%s%s has fallen asleep\033[0m\n",
+			ths.color,
+			event.(state.ESleep).Monster.String())
 	}
 }
 

@@ -1,0 +1,27 @@
+card: Monster
+series: Base
+number: 5
+
+name: Clefairy
+level: 14
+stage: 1
+hp: 40
+type: Colorless
+weakness: Fighting
+resistance: Psychic
+retreat: 1
+attacks:
+  - name: Sing
+    cost:
+      Colorless: 1
+    effects:
+      - id: coinflip
+        parameters:
+          description: If heads, the defending monster is now asleep.
+          heads:
+            id: sleep
+  - name: Metronome
+    cost:
+      Colorless: 3
+    effects:
+      - id: metronome

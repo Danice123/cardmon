@@ -57,10 +57,11 @@ func (ths Playerstate) GetBenchIndex(mid string) (int, bool) {
 }
 
 type Cardstate struct {
-	Card    card.Card
-	Energy  card.CardGroup
-	Damage  int
-	Protect bool
+	Card     card.Card
+	Energy   card.CardGroup
+	Damage   int
+	Statuses StatusList
+	Protect  bool
 }
 
 func (ths Cardstate) String() string {
@@ -74,31 +75,22 @@ func (ths Cardstate) String() string {
 }
 
 func (ths Gamestate) Attack(p constant.Player, aid string) (Gamestate, []Event, error) {
+	for _, status := range ths.Players[p].Active.Statuses {
+		if resp, ok := status.CanMonsterAttack(); !ok {
+			return ths, []Event{}, errors.New(resp)
+		}
+	}
+
 	events := []Event{}
 	t := constant.OtherPlayer(p)
 	if attack, ok := ths.Players[p].Active.Card.(card.MonsterCard).GetAttack(aid); ok {
 		if attack.CheckCost(ths.Players[p].Active.Energy) {
-			state := ths.Players[t]
-			if attack.Damage > 0 {
-				if !state.Active.Protect {
-					damage := attack.Damage
-					if state.Active.Card.(card.MonsterCard).Weakness == ths.Players[p].Active.Card.(card.MonsterCard).Type {
-						damage += 30
-					}
-					state.Active.Damage += damage
-					events = append(events, EDamage{Monster: state.Active.Card, Amount: damage})
-				}
-			}
-
-			ths.Players[t] = state
-			ths = ths.checkStateOfActive(t)
-
-			if attack.Effect != nil {
+			for _, effect := range attack.Effects {
 				var effectEvents []Event
-				ths, effectEvents = LoadEffect(attack.Effect.Id, attack.Effect.Parameters).Apply(t, ths)
+				ths, effectEvents = LoadEffect(effect.Id, effect.Parameters).Apply(t, ths)
 				events = append(events, effectEvents...)
 			}
-
+			ths = ths.checkStateOfActive(t)
 			return ths, events, nil
 		} else {
 			return ths, events, errors.New("insufficient energy")
@@ -127,27 +119,76 @@ func (ths Gamestate) checkStateOfActive(p constant.Player) Gamestate {
 	return ths
 }
 
-func (ths Gamestate) TurnTransition(p constant.Player) Gamestate {
+func (ths Gamestate) PlayBasicFromHand(p constant.Player, cid string) (Gamestate, []Event, error) {
+	events := []Event{}
+	state := ths.Players[p]
+	if c, ok := state.Hand.Remove(cid); ok {
+		if c.CardType() != card.Monster {
+			return ths, events, errors.New("attempted to play non-monster card to field")
+		}
+		if c.(card.MonsterCard).Stage != 1 {
+			return ths, events, errors.New("attempted to play non-basic monster card to field")
+		}
+		if !state.HasActive && !state.HasInitialized {
+			state.Active = Cardstate{
+				Card:     c,
+				Statuses: StatusList{},
+			}
+			state.HasActive = true
+		} else {
+			state.Bench = append(state.Bench, Cardstate{
+				Card:     c,
+				Statuses: StatusList{},
+			})
+			events = append(events, EAddToBench{Player: p, Monster: c})
+		}
+		ths.Players[p] = state
+		return ths, events, nil
+	} else {
+		return ths, events, errors.New("attempted to play card not in hand")
+	}
+}
+
+func (ths Gamestate) TurnTransition(p constant.Player) (Gamestate, []Event) {
 	ths.Turn = constant.OtherPlayer(p)
 	ths.HasAttachedEnergy = false
+
+	events := []Event{}
+	for target, state := range ths.Players {
+		for _, status := range state.Active.Statuses {
+			var e []Event
+			ths, e = status.OnTurnChange(ths, target)
+			events = append(events, e...)
+		}
+	}
 
 	state := ths.Players[ths.Turn]
 	state.Active.Protect = false
 	ths.Players[ths.Turn] = state
 
-	return ths
+	return ths, events
 }
 
-func (ths Gamestate) SwitchTo(p constant.Player, mid string) Gamestate {
+func (ths Gamestate) SwitchTo(p constant.Player, mid string) (Gamestate, []Event, error) {
+	for _, status := range ths.Players[p].Active.Statuses {
+		if resp, ok := status.CanMonsterAttack(); !ok {
+			return ths, []Event{}, errors.New(resp)
+		}
+	}
+
 	state := ths.Players[p]
 	if benchIndex, ok := state.GetBenchIndex(mid); ok {
-		old := state.Active
-		state.Active = state.Bench[benchIndex]
-		state.Bench[benchIndex] = old
-		ths.Players[p] = state
-		return ths
+		if ths.Players[p].Active.Card.(card.MonsterCard).Retreat <= len(ths.Players[p].Active.Energy) {
+			old := state.Active
+			state.Active = state.Bench[benchIndex]
+			state.Bench[benchIndex] = old
+			ths.Players[p] = state
+			return ths, []Event{}, nil
+		} else {
+			return ths, []Event{}, errors.New("insufficient energy")
+		}
 	} else {
-		panic("Attempted to bring out nonexistant monster")
+		return ths, []Event{}, errors.New("attempted to bring out nonexistant monster")
 	}
 }
 

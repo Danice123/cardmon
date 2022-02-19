@@ -15,18 +15,21 @@ attacks:
   - name: Scrunch
     cost:
       Colorless: 2
-    effect:
-      id: coinflip
-      parameters:
-        description: If heads, Chansey will be protected from all damage next turn.
-        heads:
-          id: protect
+    effects:
+      - id: coinflip
+        parameters:
+          description: If heads, Chansey will be protected from all damage next turn.
+          heads:
+            id: protect
 
   - name: Double-edge
     cost:
       Colorless: 4
-    damage: 80
-    effect:
-      id: selfdamage
-      parameters:
-        damage: 80
+    damageDescription: 80
+    effects:
+      - id: damage
+        parameters:
+          amount: 80
+      - id: selfdamage
+        parameters:
+          amount: 80

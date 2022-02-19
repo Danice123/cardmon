@@ -11,7 +11,7 @@ type Event interface {
 
 type ECoinflip struct {
 	Message string
-	Outcome string
+	Outcome bool
 }
 
 type ECardDraw struct {
@@ -32,4 +32,8 @@ type EAddToBench struct {
 type EDamage struct {
 	Monster card.Card
 	Amount  int
+}
+
+type ESleep struct {
+	Monster card.Card
 }

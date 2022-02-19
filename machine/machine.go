@@ -150,15 +150,18 @@ turnLoop:
 				ths.Current = ths.Current.SwitchDead(opp, c)
 			}
 
-			ths.Current = ths.Current.TurnTransition(p)
+			ths.Current, events = ths.Current.TurnTransition(p)
+			ths.Events(events)
 		case "Retreat":
-			if ths.Current.Players[p].Active.Card.(card.MonsterCard).Retreat <= len(ths.Current.Players[p].Active.Energy) {
-				ths.Current = ths.Current.SwitchTo(p, choice)
-			} else {
-				ths.handlers[p].Alert("Insufficient energy")
+			ths.Current, events, err = ths.Current.SwitchTo(p, choice)
+			if err != nil {
+				ths.handlers[p].Alert(err.Error())
+				continue turnLoop
 			}
+			ths.Events(events)
 		case "Pass":
-			ths.Current = ths.Current.TurnTransition(p)
+			ths.Current, events = ths.Current.TurnTransition(p)
+			ths.Events(events)
 		}
 	}
 }

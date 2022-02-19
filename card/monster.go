@@ -54,10 +54,11 @@ func (ths MonsterCard) GetAttack(aid string) (MonsterAttack, bool) {
 }
 
 type MonsterAttack struct {
-	Name   string
-	Cost   map[Type]int
-	Damage int
-	Effect *Effect
+	Name              string
+	Cost              map[Type]int
+	Description       string
+	DamageDescription string
+	Effects           []Effect
 }
 
 func CostToString(cost map[Type]int) string {
@@ -69,7 +70,7 @@ func CostToString(cost map[Type]int) string {
 }
 
 func (ths MonsterAttack) String() string {
-	return fmt.Sprintf("%s\t%d\tCost: %s", ths.Name, ths.Damage, CostToString(ths.Cost))
+	return fmt.Sprintf("%s\t%s\tCost: %s", ths.Name, ths.DamageDescription, CostToString(ths.Cost))
 }
 
 func (ths MonsterAttack) CheckCost(energyCards CardGroup) bool {

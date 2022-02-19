@@ -1,8 +1,6 @@
 package state
 
 import (
-	"fmt"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -14,19 +12,30 @@ func LoadEffect(id string, param map[string]interface{}) Effect {
 	}
 
 	switch id {
+	case "damage":
+		var effect Damage
+		err = yaml.Unmarshal(b, &effect)
+		e = effect
 	case "coinflip":
-		fmt.Printf("%s", string(b))
-		var coinflip Coinflip
-		err = yaml.Unmarshal(b, &coinflip)
-		e = coinflip
+		var effect Coinflip
+		err = yaml.Unmarshal(b, &effect)
+		e = effect
+	case "sleep":
+		var effect SleepEffect
+		err = yaml.Unmarshal(b, &effect)
+		e = effect
 	case "protect":
-		var protect Protect
-		err = yaml.Unmarshal(b, &protect)
-		e = protect
+		var effect Protect
+		err = yaml.Unmarshal(b, &effect)
+		e = effect
 	case "selfdamage":
-		var selfdamage Selfdamage
-		err = yaml.Unmarshal(b, &selfdamage)
-		e = selfdamage
+		var effect Selfdamage
+		err = yaml.Unmarshal(b, &effect)
+		e = effect
+	case "metronome":
+		var effect Metronome
+		err = yaml.Unmarshal(b, &effect)
+		e = effect
 	default:
 		panic("No effect by that id")
 	}
