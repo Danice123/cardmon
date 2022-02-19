@@ -18,6 +18,7 @@ attacks:
     effect:
       id: coinflip
       parameters:
+        description: If heads, Chansey will be protected from all damage next turn.
         heads:
           id: protect
 

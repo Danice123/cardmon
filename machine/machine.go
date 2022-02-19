@@ -4,11 +4,10 @@ import (
 	"github.com/Danice123/cardmon/card"
 	"github.com/Danice123/cardmon/constant"
 	"github.com/Danice123/cardmon/state"
-	"github.com/Danice123/cardmon/utils"
 )
 
 type Handler interface {
-	Handle(Event)
+	Handle(state.Event)
 	Alert(string)
 	AskCardFromHand(message string, cancelable bool) (string, bool)
 	AskTargetMonster(message string, showActive bool, cancelable bool) (string, bool)
@@ -33,9 +32,11 @@ func (ths *GameMachine) AlertBoth(message string) {
 	ths.handlers[constant.Player2].Alert(message)
 }
 
-func (ths *GameMachine) Event(event Event) {
-	ths.handlers[constant.Player1].Handle(event)
-	ths.handlers[constant.Player2].Handle(event)
+func (ths *GameMachine) Events(events []state.Event) {
+	for _, e := range events {
+		ths.handlers[constant.Player1].Handle(e)
+		ths.handlers[constant.Player2].Handle(e)
+	}
 }
 
 func (ths *GameMachine) Start(game state.Gamestate) {
@@ -44,15 +45,13 @@ func (ths *GameMachine) Start(game state.Gamestate) {
 	ths.playInitialCards(constant.Player1)
 	ths.playInitialCards(constant.Player2)
 
-	e := Coinflip{Message: "if heads player 1 goes first"}
-	if utils.Coinflip() {
-		e.Outcome = "heads"
-		ths.Current.Turn = constant.Player1
-	} else {
-		e.Outcome = "tails"
-		ths.Current.Turn = constant.Player2
+	var events []state.Event
+	var err error
+	ths.Current, events, err = ths.Current.StartGame()
+	if err != nil {
+		panic(err)
 	}
-	ths.Event(e)
+	ths.Events(events)
 
 	for {
 		if len(ths.Current.Players[ths.Current.Turn].Deck) == 0 {
@@ -72,16 +71,14 @@ func (ths *GameMachine) Start(game state.Gamestate) {
 }
 
 func (ths *GameMachine) playInitialCards(player constant.Player) {
+	var err error
 	for {
 		choice, _ := ths.handlers[player].AskCardFromHand("Choose a Basic monster to be your active.", false)
-		if c, ok := ths.Current.Players[player].Hand.Get(choice); ok {
-			if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
-				ths.Current = ths.Current.PlayBasicFromHand(player, choice)
-				break
-			}
-			ths.handlers[player].Alert("Card chosen was not a basic monster card")
+		ths.Current, _, err = ths.Current.PlayBasicFromHand(player, choice)
+		if err != nil {
+			ths.handlers[player].Alert(err.Error())
 		} else {
-			ths.handlers[player].Alert("Card chosen was not in hand")
+			break
 		}
 	}
 
@@ -90,24 +87,18 @@ func (ths *GameMachine) playInitialCards(player constant.Player) {
 		if !ok {
 			break
 		}
-		if c, ok := ths.Current.Players[player].Hand.Get(choice); ok {
-			if c.CardType() == card.Monster && c.(card.MonsterCard).Stage == 1 {
-				ths.Current = ths.Current.PlayBasicFromHand(player, choice)
-			} else {
-				ths.handlers[player].Alert("Card chosen was not a basic monster card")
-			}
-		} else {
-			ths.handlers[player].Alert("Card chosen was not in hand")
+		ths.Current, _, err = ths.Current.PlayBasicFromHand(player, choice)
+		if err != nil {
+			ths.handlers[player].Alert(err.Error())
 		}
 	}
 }
 
 func (ths *GameMachine) turn(p constant.Player) {
-	var drawn []card.Card
-	ths.Current, drawn = ths.Current.Draw(p, 1)
-	for _, card := range drawn {
-		ths.handlers[p].Handle(CardDraw{card})
-	}
+	var err error
+	var events []state.Event
+	ths.Current, events = ths.Current.Draw(p, 1)
+	ths.handlers[p].Handle(events[0])
 
 turnLoop:
 	for ths.Current.Turn == p {
@@ -115,29 +106,51 @@ turnLoop:
 		switch action {
 		case "Hand":
 			if c, ok := ths.Current.Players[p].Hand.Get(choice); ok {
-				ths.playCardFromHand(p, c)
+				switch c.CardType() {
+				case card.Energy:
+					if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true, true); ok {
+						ths.Current, events, err = ths.Current.AddEnergy(p, target, c.Id())
+						if err != nil {
+							ths.handlers[p].Alert(err.Error())
+							continue turnLoop
+						}
+						ths.Events(events)
+					}
+				case card.Monster:
+					if c.(card.MonsterCard).Stage == 1 {
+						ths.Current, events, err = ths.Current.PlayBasicFromHand(p, c.Id())
+						if err != nil {
+							ths.handlers[p].Alert(err.Error())
+							continue turnLoop
+						}
+						ths.Events(events)
+					}
+					// else {
+					// handle evolutions
+					//}
+				case card.Trainer:
+				}
 			} else {
 				ths.handlers[p].Alert("Card chosen was not in hand")
 			}
 		case "Attack":
-			if attack, ok := ths.Current.Players[p].Active.Card.(card.MonsterCard).GetAttack(choice); ok {
-				if attack.CheckCost(ths.Current.Players[p].Active.Energy) {
-					ths.Current = ths.Current.Attack(p, choice)
-					if ths.Current.Winner != nil {
-						break turnLoop
-					}
-
-					opp := constant.OtherPlayer(p)
-					if !ths.Current.Players[opp].HasActive {
-						c, _ := ths.handlers[opp].AskTargetMonster("Choose monster to replace dead one.", false, false)
-						ths.Current = ths.Current.SwitchDead(opp, c)
-					}
-
-					ths.Current = ths.Current.TurnTransition(p)
-				} else {
-					ths.handlers[p].Alert("Insufficient energy")
-				}
+			ths.Current, events, err = ths.Current.Attack(p, choice)
+			if err != nil {
+				ths.handlers[p].Alert(err.Error())
+				continue turnLoop
 			}
+			ths.Events(events)
+			if ths.Current.Winner != nil {
+				break turnLoop
+			}
+
+			opp := constant.OtherPlayer(p)
+			if !ths.Current.Players[opp].HasActive {
+				c, _ := ths.handlers[opp].AskTargetMonster("Choose monster to replace dead one.", false, false)
+				ths.Current = ths.Current.SwitchDead(opp, c)
+			}
+
+			ths.Current = ths.Current.TurnTransition(p)
 		case "Retreat":
 			if ths.Current.Players[p].Active.Card.(card.MonsterCard).Retreat <= len(ths.Current.Players[p].Active.Energy) {
 				ths.Current = ths.Current.SwitchTo(p, choice)
@@ -147,37 +160,5 @@ turnLoop:
 		case "Pass":
 			ths.Current = ths.Current.TurnTransition(p)
 		}
-	}
-}
-
-func (ths *GameMachine) playCardFromHand(p constant.Player, c card.Card) {
-	switch c.CardType() {
-	case card.Energy:
-		if ths.Current.HasAttachedEnergy {
-			ths.handlers[p].Alert("Already attached energy this turn")
-			break
-		}
-		if target, ok := ths.handlers[p].AskTargetMonster("Which monster to attach energy to?", true, true); ok {
-			benchIndex, benched := ths.Current.Players[p].GetBenchIndex(target)
-			if ths.Current.Players[p].Active.Card.Id() == target || benched {
-				ths.Current = ths.Current.AddEnergy(p, target, c.Id())
-
-				if benched {
-					ths.Event(AttachEnergy{Player: p, Energy: c, Target: ths.Current.Players[p].Bench[benchIndex].Card})
-				} else {
-					ths.Event(AttachEnergy{Player: p, Energy: c, Target: ths.Current.Players[p].Active.Card})
-				}
-			} else {
-				ths.handlers[p].Alert("Target monster doesn't exist")
-			}
-		}
-	case card.Monster:
-		if c.(card.MonsterCard).Stage == 1 {
-			ths.Current = ths.Current.PlayBasicFromHand(p, c.Id())
-		}
-		// else {
-		// handle evolutions
-		//}
-	case card.Trainer:
 	}
 }

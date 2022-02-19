@@ -1,6 +1,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -72,23 +73,39 @@ func (ths Cardstate) String() string {
 	return fmt.Sprintf("%s HP %d/%d %s", ths.Card.String(), hp-ths.Damage, hp, sb.String())
 }
 
-func (ths Gamestate) Attack(p constant.Player, aid string) Gamestate {
+func (ths Gamestate) Attack(p constant.Player, aid string) (Gamestate, []Event, error) {
+	events := []Event{}
 	t := constant.OtherPlayer(p)
 	if attack, ok := ths.Players[p].Active.Card.(card.MonsterCard).GetAttack(aid); ok {
-		state := ths.Players[t]
-		if !state.Active.Protect {
-			state.Active.Damage += attack.Damage
-		}
-		ths.Players[t] = state
-		ths = ths.checkStateOfActive(t)
+		if attack.CheckCost(ths.Players[p].Active.Energy) {
+			state := ths.Players[t]
+			if attack.Damage > 0 {
+				if !state.Active.Protect {
+					damage := attack.Damage
+					if state.Active.Card.(card.MonsterCard).Weakness == ths.Players[p].Active.Card.(card.MonsterCard).Type {
+						damage += 30
+					}
+					state.Active.Damage += damage
+					events = append(events, EDamage{Monster: state.Active.Card, Amount: damage})
+				}
+			}
 
-		if attack.Effect != nil {
-			ths = LoadEffect(attack.Effect.Id, attack.Effect.Parameters).Apply(t, ths)
+			ths.Players[t] = state
+			ths = ths.checkStateOfActive(t)
+
+			if attack.Effect != nil {
+				var effectEvents []Event
+				ths, effectEvents = LoadEffect(attack.Effect.Id, attack.Effect.Parameters).Apply(t, ths)
+				events = append(events, effectEvents...)
+			}
+
+			return ths, events, nil
+		} else {
+			return ths, events, errors.New("insufficient energy")
 		}
 
-		return ths
 	} else {
-		panic("Bad attack id")
+		return ths, events, errors.New("invalid attack id")
 	}
 }
 

@@ -1,4 +1,4 @@
-package machine
+package state
 
 import (
 	"github.com/Danice123/cardmon/card"
@@ -9,17 +9,27 @@ type Event interface {
 	Type() EventType
 }
 
-type Coinflip struct {
+type ECoinflip struct {
 	Message string
 	Outcome string
 }
 
-type CardDraw struct {
+type ECardDraw struct {
 	Card card.Card
 }
 
-type AttachEnergy struct {
+type EAttachEnergy struct {
 	Energy card.Card
 	Target card.Card
 	Player constant.Player
+}
+
+type EAddToBench struct {
+	Player  constant.Player
+	Monster card.Card
+}
+
+type EDamage struct {
+	Monster card.Card
+	Amount  int
 }

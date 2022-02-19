@@ -16,24 +16,39 @@ type HumanConsole struct {
 	machine *machine.GameMachine
 }
 
-func (ths *HumanConsole) Handle(event machine.Event) {
+func (ths *HumanConsole) Handle(event state.Event) {
 	switch event.Type() {
-	case machine.COINFLIP:
-		fmt.Printf("%s%s\nThe result was %s\033[0m\n", ths.color, event.(machine.Coinflip).Message, event.(machine.Coinflip).Outcome)
-	case machine.CARDDRAW:
-		fmt.Printf("%sYou drew the card: %s\033[0m\n", ths.color, event.(machine.CardDraw).Card.String())
-	case machine.ATTACHENERGY:
-		if event.(machine.AttachEnergy).Player == ths.player {
+	case state.COINFLIP:
+		fmt.Printf("%s%s\nThe result was %s\033[0m\n", ths.color, event.(state.ECoinflip).Message, event.(state.ECoinflip).Outcome)
+	case state.CARDDRAW:
+		fmt.Printf("%sYou drew the card: %s\033[0m\n", ths.color, event.(state.ECardDraw).Card.String())
+	case state.ATTACHENERGY:
+		if event.(state.EAttachEnergy).Player == ths.player {
 			fmt.Printf("%sYou attached the %s to %s\033[0m\n",
 				ths.color,
-				event.(machine.AttachEnergy).Energy.String(),
-				event.(machine.AttachEnergy).Target.String())
+				event.(state.EAttachEnergy).Energy.String(),
+				event.(state.EAttachEnergy).Target.String())
 		} else {
 			fmt.Printf("%sOpponent attached the %s to %s\033[0m\n",
 				ths.color,
-				event.(machine.AttachEnergy).Energy.String(),
-				event.(machine.AttachEnergy).Target.String())
+				event.(state.EAttachEnergy).Energy.String(),
+				event.(state.EAttachEnergy).Target.String())
 		}
+	case state.ADDTOBENCH:
+		if event.(state.EAddToBench).Player == ths.player {
+			fmt.Printf("%sYou put %s on your bench\033[0m\n",
+				ths.color,
+				event.(state.EAddToBench).Monster.String())
+		} else {
+			fmt.Printf("%sOpponent put %s on its bench\033[0m\n",
+				ths.color,
+				event.(state.EAddToBench).Monster.String())
+		}
+	case state.DAMAGE:
+		fmt.Printf("%s%s took %d damage\033[0m\n",
+			ths.color,
+			event.(state.EDamage).Monster.String(),
+			event.(state.EDamage).Amount)
 	}
 }
 

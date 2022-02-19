@@ -6,7 +6,7 @@ import (
 )
 
 type Effect interface {
-	Apply(constant.Player, Gamestate) Gamestate
+	Apply(constant.Player, Gamestate) (Gamestate, []Event)
 }
 
 type effect struct {
@@ -15,40 +15,45 @@ type effect struct {
 }
 
 type Coinflip struct {
-	Heads *effect
-	Tails *effect
+	Description string
+	Heads       *effect
+	Tails       *effect
 }
 
-func (ths Coinflip) Apply(t constant.Player, gs Gamestate) Gamestate {
+func (ths Coinflip) Apply(t constant.Player, gs Gamestate) (Gamestate, []Event) {
+	var outcome string
+	events := []Event{}
 	if utils.Coinflip() {
+		outcome = "Heads"
 		if ths.Heads != nil {
-			return LoadEffect(ths.Heads.Id, ths.Heads.Parameters).Apply(t, gs)
+			gs, events = LoadEffect(ths.Heads.Id, ths.Heads.Parameters).Apply(t, gs)
 		}
 	} else {
+		outcome = "Tails"
 		if ths.Tails != nil {
-			return LoadEffect(ths.Tails.Id, ths.Tails.Parameters).Apply(t, gs)
+			gs, events = LoadEffect(ths.Tails.Id, ths.Tails.Parameters).Apply(t, gs)
 		}
 	}
-	return gs
+	return gs, append([]Event{ECoinflip{Message: ths.Description, Outcome: outcome}}, events...)
 }
 
 type Protect struct{}
 
-func (ths Protect) Apply(t constant.Player, gs Gamestate) Gamestate {
+func (ths Protect) Apply(t constant.Player, gs Gamestate) (Gamestate, []Event) {
 	state := gs.Players[constant.OtherPlayer(t)]
 	state.Active.Protect = true
 	gs.Players[constant.OtherPlayer(t)] = state
-	return gs
+	return gs, []Event{}
 }
 
 type Selfdamage struct {
 	Damage int
 }
 
-func (ths Selfdamage) Apply(t constant.Player, gs Gamestate) Gamestate {
+func (ths Selfdamage) Apply(t constant.Player, gs Gamestate) (Gamestate, []Event) {
 	state := gs.Players[constant.OtherPlayer(t)]
 	state.Active.Damage += ths.Damage
 	gs.Players[constant.OtherPlayer(t)] = state
 	gs = gs.checkStateOfActive(constant.OtherPlayer(t))
-	return gs
+	return gs, []Event{EDamage{Monster: state.Active.Card, Amount: ths.Damage}}
 }

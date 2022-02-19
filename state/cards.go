@@ -1,16 +1,23 @@
 package state
 
 import (
+	"errors"
+
 	"github.com/Danice123/cardmon/card"
 	"github.com/Danice123/cardmon/constant"
 )
 
-func (ths Gamestate) Draw(p constant.Player, n int) (Gamestate, []card.Card) {
+func (ths Gamestate) Draw(p constant.Player, n int) (Gamestate, []Event) {
 	state := ths.Players[p]
 	cards := state.Deck.PopX(n)
 	state.Hand = append(state.Hand, cards...)
 	ths.Players[p] = state
-	return ths, cards
+
+	events := []Event{}
+	for _, card := range cards {
+		events = append(events, ECardDraw{card})
+	}
+	return ths, events
 }
 
 func (ths Gamestate) Shuffle(p constant.Player) Gamestate {
@@ -26,29 +33,29 @@ func (ths Gamestate) PlaceHandOnDeck(p constant.Player) Gamestate {
 	return ths
 }
 
-func (ths Gamestate) AddEnergy(p constant.Player, mid string, eid string) Gamestate {
+func (ths Gamestate) AddEnergy(p constant.Player, mid string, eid string) (Gamestate, []Event, error) {
 	if ths.HasAttachedEnergy {
-		panic("Already attached energy this turn")
+		return ths, []Event{}, errors.New("already attached energy this turn")
 	}
 	state := ths.Players[p]
 
 	var energy card.Card
 	if c, ok := state.Hand.Remove(eid); ok {
 		if c.CardType() != card.Energy {
-			panic("Not energy card!")
+			return ths, []Event{}, errors.New("not energy card")
 		}
 		energy = c
 	} else {
-		panic("Attempted to play card not in hand")
+		return ths, []Event{}, errors.New("attempted to play card not in hand")
 	}
 
 	monster := state.getMonsterPointer(mid)
 	if monster == nil {
-		panic("Attempted to play card on nonexistant monster")
+		return ths, []Event{}, errors.New("attempted to play card on nonexistant monster")
 	}
 	monster.Energy.Add(energy)
 
 	ths.Players[p] = state
 	ths.HasAttachedEnergy = true
-	return ths
+	return ths, []Event{EAttachEnergy{Player: p, Energy: energy, Target: monster.Card}}, nil
 }
